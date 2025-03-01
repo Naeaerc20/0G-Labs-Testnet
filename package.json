@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "axios": "^1.7.9",
+    "bestcaptchasolver": "^1.1.6",
+    "colors": "^1.4.0",
+    "console-clear": "^1.1.1",
+    "ethers": "^5.7.2",
+    "figlet": "^1.8.0",
+    "inquirer": "^8.2.6",
+    "p-limit": "^2.3.0",
+    "socks-proxy-agent": "^8.0.5",
+    "winston": "^3.17.0"
+  }
+}
