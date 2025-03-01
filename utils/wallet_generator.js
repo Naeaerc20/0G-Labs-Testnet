@@ -1,16 +1,19 @@
 const fs = require('fs');
 const ethers = require('ethers');
 const inquirer = require('inquirer');
+const path = require('path');
+
+const walletPath = path.join(__dirname, 'wallets.json');
 
 const loadWallets = () => {
-  if (!fs.existsSync('wallets.json')) {
-    fs.writeFileSync('wallets.json', JSON.stringify([]));
+  if (!fs.existsSync(walletPath)) {
+    fs.writeFileSync(walletPath, JSON.stringify([]));
   }
-  return JSON.parse(fs.readFileSync('wallets.json', 'utf-8'));
+  return JSON.parse(fs.readFileSync(walletPath, 'utf-8'));
 };
 
 const saveWallets = (wallets) => {
-  fs.writeFileSync('wallets.json', JSON.stringify(wallets, null, 2));
+  fs.writeFileSync(walletPath, JSON.stringify(wallets, null, 2));
 };
 
 const generateWallets = async () => {

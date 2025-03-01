@@ -1,41 +1,50 @@
+#!/usr/bin/env node
+const colors = require('colors');
 const bestcaptchasolverapi = require('bestcaptchasolver');
-bestcaptchasolverapi.set_access_token('YOUR_ACCESS_TOKEN');
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+let inSolving = false;
+
+function log(txt) {
+  console.log(txt);
 }
 
-async function pollCaptcha(captchaId, interval = 500) {
-  while (true) {
-    try {
-      const result = await bestcaptchasolverapi.retrieve_captcha(captchaId);
-      if (result.solution && result.solution.gRecaptchaResponse) {
-        return result;
-      }
-    } catch (e) {
-      // ignore errors while polling
-    }
-    await sleep(interval);
+function example_hcaptcha() {
+  const ACCESS_TOKEN = 'YOUR_ACCESS_TOKEN';
+  let captcha_id;
+
+  if (!inSolving) {
+    inSolving = true;
+  } else {
+    return log("🚫 Already processing another task".red);
   }
-}
 
-(async () => {
-  try {
-    const proxy = process.argv[2] || '';
-    console.log('⚙️  Submitting hCaptcha...');
-    const captchaId = await bestcaptchasolverapi.submit_hcaptcha({
-      page_url: 'https://hub.0g.ai/faucet',
-      site_key: '1230eb62-f50c-4da4-a736-da5c3c342e8e',
-      proxy: proxy
+  bestcaptchasolverapi.set_access_token(ACCESS_TOKEN);
+
+  bestcaptchasolverapi.account_balance()
+    .then((balance) => {
+      log(("💰 Balance: $" + balance).green);
+      log("🔍 Solving hCaptcha".blue);
+      return bestcaptchasolverapi.submit_hcaptcha({
+        page_url: 'https://hub.0g.ai/faucet',
+        site_key: '1230eb62-f50c-4da4-a736-da5c3c342e8e'
+      });
+    })
+    .then((id) => {
+      captcha_id = id;
+      log(("✅ Got ID " + id + ", waiting for completion ...").yellow);
+      return bestcaptchasolverapi.retrieve_captcha(id);
+    })
+    .then((data) => {
+      const solution = data.solution ? (data.solution.gRecaptchaResponse || data.solution) : "No solution";
+      log(("🔑 response: \"" + solution + "\"").magenta);
+      console.log("CAPTCHA_SOLUTION=" + solution);
+    })
+    .catch((err) => {
+      log(("❌ Error: " + (err.message || err)).red);
+    })
+    .then(() => {
+      inSolving = false;
     });
-    console.log(`🔎 Captcha submitted. ID: ${captchaId}`);
-    console.log('⌛ Waiting for solution...');
-    const result = await pollCaptcha(captchaId, 500);
-    console.log('✅ Captcha Solved!'.blue);
-    // This line is used by request.js to capture the token.
-    console.log(`CAPTCHA_SOLUTION=${result.solution.gRecaptchaResponse}`);
-  } catch (error) {
-    console.error(`❌ Error solving hCaptcha: ${error.message}`.blue);
-    process.exit(1);
-  }
-})();
+}
+
+example_hcaptcha();
