@@ -7,6 +7,9 @@ contract deployment, token launch, liquidity etc... Current project structure is
 
 0G-Labs-Testnet/
 ├── actions/                  
+│   ├── HubSwap/
+│   │   ├── ABI.js           # Contains the ABI definitions for HubSwap smart contract interactions (to be implemented)
+│   │   └── swap.js          # Contains the code for executing swaps via HubSwap (to be implemented)
 │   └── (empty)              # Reserved for future action scripts
 │
 ├── faucets/
@@ -14,7 +17,10 @@ contract deployment, token launch, liquidity etc... Current project structure is
 │       ├── request.js       # Handles faucet requests
 │       ├── captcha.js       # Manages captcha verification
 │       ├── scripts/         # Contains additional faucet-related scripts
-│       └── apis.js          # Manages API calls for the faucet service
+│       ├── apis.js          # Manages API calls for the faucet service
+│       └── tokens/
+│           ├── ABI.js       # Contains the ABI definitions for token contracts (to be implemented)
+│           └── claim.js     # Contains the code to claim tokens from the faucet (to be implemented)
 │
 ├── index.js                 # Main entry point of the project
 ├── node_modules/            # Contains npm packages and dependencies
@@ -28,8 +34,6 @@ contract deployment, token launch, liquidity etc... Current project structure is
     ├── wallet_aggregator.js # Aggregates operations or data across multiple wallets
     ├── wallet_generator.js  # Generates wallet addresses or credentials
     └── wallets.json         # Stores wallet data in JSON format
-
-Files will be fully updated shortly.
 
 
 ## Instructions
