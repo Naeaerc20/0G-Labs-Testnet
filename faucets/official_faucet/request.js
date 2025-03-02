@@ -2,7 +2,6 @@ const colors = require('colors');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const pLimit = require('p-limit');
 const inquirer = require('inquirer');
 const { requestFaucet, getProxyIP } = require('./scripts/apis');
 const { TX_EXPLORER } = require('../../utils/chain');
@@ -10,7 +9,10 @@ const wallets = require('../../utils/wallets.json');
 
 const proxiesPath = path.join(__dirname, '../../proxies.txt');
 const proxiesContent = fs.readFileSync(proxiesPath, 'utf8');
-const proxies = proxiesContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+const proxies = proxiesContent
+  .split('\n')
+  .map(line => line.trim())
+  .filter(line => line.length > 0);
 
 function getProxyId(proxyLine) {
   try {
@@ -85,35 +87,40 @@ async function processWallet(wallet) {
       console.log(`❌ Faucet request failed for wallet [${wallet.address}]\n`.red);
     }
   } catch (error) {
-    if (error.response && error.response.status === 400) {
-      console.log(`Request Failed Status [400] API Response: ${JSON.stringify(error.response.data)}\n`.red);
-    } else {
-      console.log(`❌ Faucet request error for wallet [${wallet.address}]: ${error.message}\n`.red);
-    }
+    let code = error.response && error.response.status ? error.response.status : 'unknown';
+    console.log(`❌ Faucet request failed for wallet [${wallet.address}]`.red);
+    const data = error.response && error.response.data ? error.response.data : { error: error.message };
+    console.log(`❌ API Response: ${JSON.stringify(data, null, 0)}`.red);
   }
 }
 
 async function main() {
-  const answer = await inquirer.prompt([
+  // Pregunta inicial para definir el modo de procesamiento
+  const modeAnswer = await inquirer.prompt([
     {
-      type: 'input',
-      name: 'claim',
-      message: '❓ Would you like to perform daily faucet claim? (y/n)'
+      type: 'list',
+      name: 'claimMode',
+      message: 'How would you like to process faucet claims?',
+      choices: [
+        { name: '1. Process one wallet per day', value: 'one' },
+        { name: '2. Process all wallets sequentially immediately', value: 'all' }
+      ]
     }
   ]);
-  const isDaily = answer.claim.toLowerCase() === 'y';
-  if (!isDaily) {
-    const limit = pLimit(1);
-    await Promise.all(wallets.map(wallet => limit(() => processWallet(wallet))));
-    console.log('\nCompleted one-time faucet claim.\n'.blue);
-    process.exit(0);
-  } else {
-    while (true) {
-      const limit = pLimit(1);
-      await Promise.all(wallets.map(wallet => limit(() => processWallet(wallet))));
-      console.log('\n⏳ Waiting 24 hours before next claim...\n'.blue);
+
+  if (modeAnswer.claimMode === 'one') {
+    for (const wallet of wallets) {
+      await processWallet(wallet);
+      console.log('\n⏳ Waiting 24 hours before next claim for next wallet...\n'.blue);
       await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000));
     }
+  } else if (modeAnswer.claimMode === 'all') {
+    // Procesa todas las wallets una tras otra sin esperar 24 horas entre cada una
+    for (const wallet of wallets) {
+      await processWallet(wallet);
+    }
+    console.log('\nCompleted sequential faucet claims for all wallets.\n'.blue);
+    process.exit(0);
   }
 }
 

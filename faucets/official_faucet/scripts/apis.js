@@ -31,7 +31,7 @@ async function getProxyIP(proxy) {
     const response = await axios.get('https://api.ipify.org?format=json', {
       httpAgent: agent,
       httpsAgent: agent,
-      timeout: 5000
+      timeout: 15000
     });
     return response.data.ip;
   } catch (error) {

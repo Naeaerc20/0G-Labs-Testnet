@@ -63,7 +63,23 @@ async function claimFaucetMenu() {
 
   if (faucetOption === 'official') {
     console.log('Official Faucet selected.\n');
-    await spawnChildInteractive('node', ['faucets/official_faucet/request.js']);
+    const { assetOption } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'assetOption',
+        message: 'What assets would you like to claim?',
+        choices: [
+          { name: '1. A0GI', value: 'a0gi' },
+          { name: '2. ETH, BTC, USDT', value: 'eth_btc_usdt' }
+        ]
+      }
+    ]);
+
+    if (assetOption === 'a0gi') {
+      await spawnChildInteractive('node', ['faucets/official_faucet/request.js']);
+    } else if (assetOption === 'eth_btc_usdt') {
+      await spawnChildInteractive('node', ['faucets/official_faucet/tokens/claim.js']);
+    }
     await backToMainMenu();
   } else {
     console.log('Faucet.Trade selected. (coming soon...)');
