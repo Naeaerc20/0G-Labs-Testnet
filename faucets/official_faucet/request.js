@@ -34,9 +34,9 @@ function getCaptchaToken(fullProxy) {
         if (line.startsWith('CAPTCHA_SOLUTION=')) {
           token = line.split('=')[1].trim();
         } else if (line.startsWith('🔑 response:')) {
-          // Do not print the raw captcha solution line
+          // No se imprime la solución cruda del captcha
         } else if (line.trim().length > 0) {
-          // Print only status messages from captcha.js
+          // Se imprimen solo los mensajes de estado relevantes de captcha.js
           if (
             line.includes('Solving hCaptcha') ||
             line.includes('Balance:') ||
@@ -65,32 +65,62 @@ async function processWallet(wallet) {
   const proxyId = fullProxy === 'No Proxy Found' ? 'No ID Found' : getProxyId(fullProxy);
   const publicIP = fullProxy === 'No Proxy Found' ? 'No IP Found' : await getProxyIP(fullProxy);
   console.log(`🔗 Using Proxy ID - [${proxyId}] with Public IP - [${publicIP}]`.blue);
-  console.log('⏳ Solving Captcha...'.blue);
-  let captchaToken;
-  try {
-    captchaToken = await getCaptchaToken(fullProxy);
-  } catch (err) {
-    console.log(`❌ Error solving captcha: ${err.message}\n`.red);
-    return;
-  }
-  if (!captchaToken) {
-    console.log(`❌ Captcha not solved for wallet [${wallet.address}]\n`.red);
-    return;
-  }
-  console.log('✅ Captcha Solved!'.blue);
-  console.log(`🔐 Requesting Faucet for Wallet - [${wallet.address}]`.blue);
-  try {
-    const message = await requestFaucet(wallet.address, captchaToken);
-    if (message) {
-      console.log(`🎉 Faucet Successfully Claimed! - [${TX_EXPLORER}${message}]\n`.blue);
-    } else {
-      console.log(`❌ Faucet request failed for wallet [${wallet.address}]\n`.red);
+
+  let retries = 0;
+  const maxRetries = 5;
+  let success = false;
+  let captchaToken = null;
+
+  while (retries < maxRetries && !success) {
+    console.log('⏳ Solving Captcha...'.blue);
+    try {
+      captchaToken = await getCaptchaToken(fullProxy);
+    } catch (err) {
+      console.log(`❌ Error solving captcha: ${err.message}\n`.red);
+      break;
     }
-  } catch (error) {
-    let code = error.response && error.response.status ? error.response.status : 'unknown';
-    console.log(`❌ Faucet request failed for wallet [${wallet.address}]`.red);
-    const data = error.response && error.response.data ? error.response.data : { error: error.message };
-    console.log(`❌ API Response: ${JSON.stringify(data, null, 0)}`.red);
+    if (!captchaToken) {
+      console.log(`❌ Captcha not solved for wallet [${wallet.address}]\n`.red);
+      break;
+    }
+    console.log('✅ Captcha Solved!'.blue);
+    console.log(`🔐 Requesting Faucet for Wallet - [${wallet.address}]`.blue);
+    try {
+      const message = await requestFaucet(wallet.address, captchaToken);
+      if (message) {
+        // Se extrae el hash si se encuentra en el mensaje
+        let hash = message;
+        if (message.includes("hash:")) {
+          hash = message.split("hash:")[1].trim();
+        }
+        console.log(`🎉 Faucet Successfully Claimed! - [${TX_EXPLORER}${hash}]\n`.blue);
+        success = true;
+        break;
+      }
+    } catch (error) {
+      const code = error.response && error.response.status ? error.response.status : 'unknown';
+      const data = error.response && error.response.data ? error.response.data : { error: error.message };
+      const errorMessage = data.message || '';
+      // Si se recibe error 400 o el mensaje "Please wait 12 hours before requesting again" se aborta sin reintentar
+      if (code === 400 || (errorMessage && errorMessage.includes("Please wait 12 hours before requesting again"))) {
+        break;
+      } else if ([401, 500, 501, 502, 503].includes(code)) {
+        retries++;
+        if (retries < maxRetries) {
+          console.log(`Retrying... Attempt ${retries + 1} of ${maxRetries}`.blue);
+          // Se re-suelve el captcha en cada intento
+        } else {
+          console.log(`❌ Maximum retry attempts reached for wallet [${wallet.address}]`.red);
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (!success) {
+    console.log(`❌ Faucet request failed for wallet [${wallet.address}]\n`.red);
   }
 }
 
@@ -111,11 +141,12 @@ async function main() {
   if (modeAnswer.claimMode === 'one') {
     for (const wallet of wallets) {
       await processWallet(wallet);
-      console.log('\n⏳ Waiting 24 hours before next claim for next wallet...\n'.blue);
-      await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000));
+      console.log('\n⏳ Waiting 24 hours and 10 minutes before processing the next wallet...\n'.blue);
+      // 24 horas y 10 minutos en milisegundos: (24 * 60 + 10) * 60 * 1000 = 87,000,000 ms
+      await new Promise(resolve => setTimeout(resolve, 87000000));
     }
   } else if (modeAnswer.claimMode === 'all') {
-    // Procesa todas las wallets una tras otra sin esperar 24 horas entre cada una
+    // Procesa todas las wallets una tras otra sin esperar entre cada una
     for (const wallet of wallets) {
       await processWallet(wallet);
     }

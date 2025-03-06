@@ -12,16 +12,14 @@ async function requestFaucet(address, hcaptchaToken) {
     if (response.status === 200 && response.data && response.data.message) {
       return response.data.message;
     } else {
-      console.log(`Unexpected response: ${JSON.stringify(response.data)}`.blue);
-      return null;
+      console.log(`Faucet Request Failed with code - [${response.status}] API Response: ${JSON.stringify(response.data)}`);
+      throw new Error("Unexpected response");
     }
   } catch (error) {
-    if (error.response && error.response.status === 400) {
-      throw error;
-    } else {
-      console.log(`Error in requestFaucet: ${error.message}`.blue);
-      return null;
-    }
+    const code = error.response && error.response.status ? error.response.status : 'unknown';
+    const data = error.response && error.response.data ? error.response.data : { error: error.message };
+    console.log(`Faucet Request Failed with code - [${code}] API Response: ${JSON.stringify(data)}`);
+    throw error;
   }
 }
 
